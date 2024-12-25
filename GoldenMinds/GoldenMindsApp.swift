@@ -11,7 +11,7 @@ import SwiftUI
 struct GoldenMindsApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainContentView() // Entry point for the app
         }
     }
 }
