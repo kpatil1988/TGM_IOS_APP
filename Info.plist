@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+   Info.plist
+   GoldenMinds
+
+   Created by Karthik patil on 27/12/24.
+   © 2024 ___ORGANIZATIONNAME___. All rights reserved.
+-->
+
+<plist version="1.0">
+<dict>
+    <!-- Application settings -->
+    <key>CFBundleName</key>
+    <string>GoldenMinds</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.yourcompany.GoldenMinds</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+
+    <!-- Device capabilities -->
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>armv7</string>
+    </array>
+
+    <!-- Application interface orientation -->
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <!-- Privacy settings - IMPORTANT for microphone and speech -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app requires access to the microphone for speech recognition.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>This app needs access to speech recognition to convert your voice into text.</string>
+
+    <!-- Information when exposed to background updating (optional, depends on the needs) -->
+    <!--
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+    </array>
+    -->
+
+    <!-- Application supports iTunes file sharing -->
+    <key>UIFileSharingEnabled</key>
+    <true/>
+
+    <!-- Application supports document handling (optional) -->
+    <!--
+    <key>UIDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>txt</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>public.text</string>
+            </array>
+        </dict>
+    </array>
+    -->
+    
+    <!-- Deprecated in favor of SceneDelegate for scene management (iOS 13 and later) -->
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <true/>
+        <key>UISceneConfigurations</key>
+        <dict>
+            <key>UIWindowSceneSessionRoleApplication</key>
+            <array>
+                <dict>
+                    <key>UISceneConfigurationName</key>
+                    <string>Default Configuration</string>
+                    <key>UISceneDelegateClassName</key>
+                    <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+                </dict>
+            </array>
+        </dict>
+    </dict>
+</dict>
+</plist>

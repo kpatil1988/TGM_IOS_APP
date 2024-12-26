@@ -1,19 +1,24 @@
 import SwiftUI
+import Speech
+import AVFoundation
+
+
 
 struct MoodCheckinView: View {
-    @ObservedObject var viewModel: MoodCheckinViewModel // Accept the view model
-    @State private var moodFilter: String = "" // For filtering mood tags
-    @State private var isDropdownOpen: Bool = false // Controls the dropdown visibility
-    @State private var isMoodNoteSubmitted: Bool = false // Tracks if mood note is submitted
-    @State private var isUserLoggedIn = false
-    @State private var isSidebarVisible = false
-    @State private var showSignIn = false
-    @State private var showSignUp = false
+    @ObservedObject var viewModel: MoodCheckinViewModel
+    @State private var moodFilter: String = ""
+    @State private var isDropdownOpen: Bool = false
+    @State private var isMoodNoteSubmitted: Bool = false
     
-    // Sample mood tags
+    // State for speech recognition
+    @State private var isRecording = false
+    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+    private let audioEngine = AVAudioEngine()
+    @State private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    @State private var recognitionTask: SFSpeechRecognitionTask?
+
     let moodTags = ["Happy", "Sad", "Anxious", "Excited", "Calm", "Angry"]
 
-    // Computed property for filtered mood tags
     var filteredMoodTags: [String] {
         if moodFilter.isEmpty {
             return moodTags
@@ -24,31 +29,20 @@ struct MoodCheckinView: View {
 
     var body: some View {
         VStack {
-//            HeaderView(
-//                isUserLoggedIn: $isUserLoggedIn,
-//                showSignIn : $showSignIn,
-//                showSignUp : $showSignUp,
-//                isSidebarVisible: $isSidebarVisible // Match the binding required
-//                
-//            )
-            
             Text("Mood Check-In")
                 .font(.title)
                 .fontWeight(.bold)
                 .padding()
 
-            // Picker for selecting log type (Changed order)
             Picker("Select Log Type", selection: $viewModel.selectedLogType) {
-                Text("Instant Love").tag("Liquid Love")
+                Text("Instant Love").tag("Instant Love")
                 Text("Morning Log").tag("Morning Log")
                 Text("Night Log").tag("Night Log")
             }
             .pickerStyle(SegmentedPickerStyle())
             .padding(.horizontal)
 
-            // Mood input form based on selected log type
             VStack(spacing: 15) {
-                // Filterable mood tag dropdown
                 HStack {
                     TextField("Filter Moods...", text: $moodFilter)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -70,7 +64,7 @@ struct MoodCheckinView: View {
                         ForEach(filteredMoodTags, id: \.self) { mood in
                             MultipleSelectionRow(title: mood, isSelected: viewModel.selectedMoods.contains(mood)) {
                                 if viewModel.selectedMoods.contains(mood) {
-                                    viewModel.selectedMoods.remove(at: viewModel.selectedMoods.firstIndex(of: mood)!)
+                                    viewModel.selectedMoods.removeAll(where: { $0 == mood })
                                 } else if viewModel.selectedMoods.count < 5 {
                                     viewModel.selectedMoods.append(mood)
                                 }
@@ -81,38 +75,21 @@ struct MoodCheckinView: View {
                     .padding(.vertical)
                 }
 
-                // Showing selected moods
-                if !viewModel.selectedMoods.isEmpty {
-                    Text("Selected Moods:")
-                        .font(.headline)
-                        .padding(.leading, 20)
+                // Mood Note Input with Speech-to-Text Button
+                HStack {
+                    TextField("Mood Note", text: $viewModel.moodNote)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding()
+                        .frame(height: 100)
 
-                    HStack {
-                        ForEach(viewModel.selectedMoods, id: \.self) { mood in
-                            HStack {
-                                Text(mood)
-                                    .padding(5)
-                                    .background(Color.blue.opacity(0.3))
-                                    .cornerRadius(5)
-
-                                Button(action: {
-                                    viewModel.selectedMoods.removeAll(where: { $0 == mood })
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.red)
-                                        .font(.system(size: 14))
-                                }
-                            }
-                        }
+                    Button(action: toggleRecording) {
+                        Image(systemName: isRecording ? "stop.circle" : "mic.circle")
+                            .font(.title)
+                            .foregroundColor(.blue)
+                            .padding()
                     }
-                    .padding(.horizontal)
+                    .disabled(!(speechRecognizer?.isAvailable ?? false) || !isAuthorized())
                 }
-
-                // Enlarged Mood Note input
-                TextField("Mood Note", text: $viewModel.moodNote)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding()
-                    .frame(height: 100)
 
                 Button(action: {
                     submitMoodLog()
@@ -131,7 +108,6 @@ struct MoodCheckinView: View {
                     }
                 }
 
-                // Additional feedback field and submit feedback button for Instant Love
                 if viewModel.selectedLogType == "Instant Love" && isMoodNoteSubmitted {
                     TextField("Activity Feedback", text: $viewModel.activityFeedback)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -156,23 +132,83 @@ struct MoodCheckinView: View {
         }
         .padding()
         .background(Color(UIColor.systemGray6))
+        .edgesIgnoringSafeArea(.top)
+        .onAppear(perform: requestSpeechAuthorization)
     }
 
-    private func submitMoodLog() {
-        // Handle the mood log submission
-        print("Log Type: \(viewModel.selectedLogType)")
-        print("Selected Moods: \(viewModel.selectedMoods)")
-        print("Mood Note: \(viewModel.moodNote)")
-        if viewModel.selectedLogType == "Instant Love" {
-            print("Activity Feedback: \(viewModel.activityFeedback)")
+    private func requestSpeechAuthorization() {
+        SFSpeechRecognizer.requestAuthorization { authStatus in
+            OperationQueue.main.addOperation {
+                if authStatus != .authorized {
+                    print("Speech recognition authorization denied")
+                }
+            }
         }
     }
 
+    private func toggleRecording() {
+        if isRecording {
+            stopSpeechRecognition()
+        } else {
+            startSpeechRecognition()
+        }
+    }
+
+    private func startSpeechRecognition() {
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+
+        guard let recognitionRequest = recognitionRequest else {
+            fatalError("Can't create recognition request.")
+        }
+
+        recognitionRequest.shouldReportPartialResults = true
+
+        let inputNode = audioEngine.inputNode
+
+        recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { result, error in
+            if let result = result {
+                self.viewModel.moodNote = result.bestTranscription.formattedString
+            }
+
+            if error != nil || result?.isFinal == true {
+                self.stopSpeechRecognition()
+            }
+        }
+
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+            self.recognitionRequest?.append(buffer)
+        }
+
+        audioEngine.prepare()
+
+        do {
+            try audioEngine.start()
+            isRecording = true
+        } catch {
+            print("Audio engine couldn't start: \(error.localizedDescription)")
+        }
+    }
+
+    private func stopSpeechRecognition() {
+        audioEngine.stop()
+        recognitionRequest?.endAudio()
+        recognitionTask?.cancel()
+        isRecording = false
+    }
+
+    private func isAuthorized() -> Bool {
+        return SFSpeechRecognizer.authorizationStatus() == .authorized
+    }
+
+    private func submitMoodLog() {
+        print("Logging Mood: \(viewModel.moodNote)")
+        viewModel.resetState()
+    }
+
     private func submitFeedback() {
-        // Handle feedback submission
         print("Feedback: \(viewModel.activityFeedback)")
-        isMoodNoteSubmitted = false // Reset for next operation
-        viewModel.resetState() // Clear states after submission
+        isMoodNoteSubmitted = false
     }
 }
 
@@ -198,4 +234,8 @@ struct MultipleSelectionRow: View {
     }
 }
 
-
+struct MoodCheckinView_Previews: PreviewProvider {
+    static var previews: some View {
+        MoodCheckinView(viewModel: MoodCheckinViewModel())
+    }
+}

@@ -8,14 +8,15 @@
 
 import SwiftUI
 
+// Sample view model; ensure this is fleshed out with the necessary logic
 class MoodCheckinViewModel: ObservableObject {
-    @Published var selectedLogType: String = "Morning Log" // Selected log type
-    @Published var selectedMoods: [String] = [] // Selected moods
-    @Published var moodNote: String = "" // Mood note text
-    @Published var activityFeedback: String = "" // For instant log feedback
+    @Published var selectedLogType: String = "Instant Love"
+    @Published var selectedMoods: [String] = []
+    @Published var moodNote: String = ""
+    @Published var activityFeedback: String = ""
 
     func resetState() {
-        selectedLogType = "Morning Log"
+        selectedLogType = "Instant Love"
         selectedMoods.removeAll()
         moodNote = ""
         activityFeedback = ""
